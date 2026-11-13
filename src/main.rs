@@ -1,4 +1,5 @@
 use std::io::{self, BufRead, Write};
+mod rfcomm;
 
 fn execute(command: &str) -> &'static str {
     match command {
