@@ -11,10 +11,23 @@ fn execute(command: &str) -> &'static str {
 
 fn main() -> io::Result<()> {
     let stdin = io::stdin();
+    let mut reader = stdin.lock();
     let mut stdout = io::stdout();
 
-    for line in stdin.lock().lines() {
-        let command = line?;
+    loop {
+        let mut command = Vec::new();
+
+        let bytes_read = reader.read_until(b'\r', &mut command)?;
+
+        if bytes_read == 0 {
+            break;
+        }
+
+        if command.last() == Some(&b'\r') {
+            command.pop();
+        }
+
+        let command = String::from_utf8_lossy(&command);
         let response = execute(command.trim());
 
         stdout.write_all(response.as_bytes())?;
