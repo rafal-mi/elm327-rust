@@ -1,3 +1,4 @@
+use std::io;
 use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
 
 #[repr(C)]
@@ -5,6 +6,60 @@ pub struct SockAddrRc {
     pub rc_family: libc::sa_family_t,
     pub rc_bdaddr: [u8; 6],
     pub rc_channel: u8,
+}
+
+pub fn accept_one_connection() -> io::Result<()> {
+    let raw_fd = unsafe {
+        libc::socket(libc::AF_BLUETOOTH, libc::SOCK_STREAM, 3)
+    };
+
+    if raw_fd < 0 {
+        return Err(io::Error::last_os_error());
+    }
+
+    let listener = unsafe { OwnedFd::from_raw_fd(raw_fd) };
+
+    let address = SockAddrRc {
+        rc_family: libc::AF_BLUETOOTH as libc::sa_family_t,
+        rc_bdaddr: [0; 6],
+        rc_channel: 1,
+    };
+
+    let result = unsafe {
+        libc::bind(
+            listener.as_raw_fd(),
+            (&address as *const SockAddrRc).cast(),
+            std::mem::size_of::<SockAddrRc>() as libc::socklen_t,
+        )
+    };
+
+    if result < 0 {
+        return Err(io::Error::last_os_error());
+    }
+
+    if unsafe { libc::listen(listener.as_raw_fd(), 1) } < 0 {
+        return Err(io::Error::last_os_error());
+    }
+
+    println!("Listening on RFCOMM channel 1...");
+
+    let client_fd = unsafe {
+        libc::accept(
+            listener.as_raw_fd(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+        )
+    };
+
+    if client_fd < 0 {
+        return Err(io::Error::last_os_error());
+    }
+
+    let _client = unsafe { OwnedFd::from_raw_fd(client_fd) };
+
+    println!("Bluetooth client connected!");
+
+    Ok(())
 }
 
 #[cfg(test)]

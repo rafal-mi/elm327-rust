@@ -11,6 +11,9 @@ fn execute(command: &str) -> &'static str {
 }
 
 fn main() -> io::Result<()> {
+    if std::env::args().any(|arg| arg == "--rfcomm") {
+        return rfcomm::accept_one_connection();
+    }
     let stdin = io::stdin();
     let mut reader = stdin.lock();
     let mut stdout = io::stdout();
