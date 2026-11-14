@@ -1,3 +1,5 @@
+use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+
 #[repr(C)]
 pub struct SockAddrRc {
     pub rc_family: libc::sa_family_t,
@@ -35,10 +37,11 @@ mod tests {
             std::io::Error::last_os_error()
         );
 
-        println!("RFCOMM socket fd = {fd}");
+        let socket = unsafe {
+            OwnedFd::from_raw_fd(fd)
+        };
 
-        let result = unsafe { libc::close(fd) };
-        assert_eq!(result, 0);
+        println!("RFCOMM socket = {socket:?}");
     }
 
     #[test]
@@ -53,6 +56,10 @@ mod tests {
             std::io::Error::last_os_error()
         );
 
+        let socket = unsafe {
+            OwnedFd::from_raw_fd(fd)
+        };
+
         let address = SockAddrRc {
             rc_family: libc::AF_BLUETOOTH as libc::sa_family_t,
             rc_bdaddr: [0; 6],
@@ -61,7 +68,7 @@ mod tests {
 
         let result = unsafe {
             libc::bind(
-                fd,
+                socket.as_raw_fd(),
                 (&address as *const SockAddrRc).cast::<libc::sockaddr>(),
                 std::mem::size_of::<SockAddrRc>() as libc::socklen_t,
             )
@@ -69,7 +76,7 @@ mod tests {
 
         if result == 0 {
             let listen_result = unsafe {
-                libc::listen(fd, 1)
+                libc::listen(socket.as_raw_fd(), 1)
             };
 
             assert_eq!(
@@ -81,10 +88,6 @@ mod tests {
         }
 
         let error = std::io::Error::last_os_error();
-
-        unsafe {
-            libc::close(fd);
-        }
 
         assert_eq!(result, 0, "bind() failed: {error}");
     }
