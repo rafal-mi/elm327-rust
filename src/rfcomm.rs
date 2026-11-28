@@ -8,7 +8,7 @@ pub struct SockAddrRc {
     pub rc_channel: u8,
 }
 
-pub fn accept_one_connection() -> io::Result<()> {
+pub fn accept_one_connection(profile: crate::Profile) -> io::Result<()> {
     let raw_fd = unsafe {
         libc::socket(libc::AF_BLUETOOTH, libc::SOCK_STREAM, 3)
     };
@@ -55,11 +55,12 @@ pub fn accept_one_connection() -> io::Result<()> {
         return Err(io::Error::last_os_error());
     }
 
-    let _client = unsafe { OwnedFd::from_raw_fd(client_fd) };
+    let client = unsafe { OwnedFd::from_raw_fd(client_fd) };
+    let stream = std::fs::File::from(client);
+    let reader = io::BufReader::new(stream.try_clone()?);
 
     println!("Bluetooth client connected!");
-
-    Ok(())
+    crate::serve(reader, stream, profile)
 }
 
 #[cfg(test)]
